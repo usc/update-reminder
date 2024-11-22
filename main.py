@@ -33,6 +33,22 @@ def save_cache(cache, cache_file="cache.json"):
     except IOError as e:
         print(f"Error saving cache: {e}")
 
+# 检查是否需要进行新的检查
+def is_check_needed(cache, cache_file="cache.json"):
+    today = datetime.now(timezone.utc).date()
+    last_checked = cache.get("last_checked")
+
+    if last_checked:
+        last_checked_date = datetime.strptime(last_checked, "%Y-%m-%d").date()
+        if last_checked_date == today:
+            print("Already checked today. No new checks performed.")
+            return False
+
+    # 更新最后检查日期为今天
+    cache["last_checked"] = today.strftime("%Y-%m-%d")
+    save_cache(cache, cache_file)
+    return True
+
 # 检查仓库最近发布的版本
 def check_repo_releases(repos, token, days=7, cache_file="cache.json"):
     base_url = "https://api.github.com/repos/"
@@ -117,11 +133,14 @@ if __name__ == "__main__":
     if not repo_list:
         print("No repositories found. Please check your input file.")
     else:
-        recent_updates = check_repo_releases(repo_list, token, args.days, args.cache)
+        # 加载缓存并检查是否需要新检查
+        cache = load_cache(args.cache)
+        if is_check_needed(cache, args.cache):
+            recent_updates = check_repo_releases(repo_list, token, args.days, args.cache)
 
-        if recent_updates:
-            print(f"Repositories with new releases in the last {args.days} days:")
-            for repo, version, published_at in recent_updates:
-                print(f"{repo} - Version: {version} (Published: {published_at})")
-        else:
-            print("No new releases since the last check.")
+            if recent_updates:
+                print(f"Repositories with new releases in the last {args.days} days:")
+                for repo, version, published_at in recent_updates:
+                    print(f"{repo} - Version: {version} (Published: {published_at})")
+            else:
+                print("No new releases since the last check.")
