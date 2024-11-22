@@ -5,8 +5,11 @@ import argparse
 import json
 import os
 
+# 获取脚本所在目录
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # 从文件读取仓库列表
-def load_repos_from_file(filename="repo.txt"):
+def load_repos_from_file(filename):
     try:
         with open(filename, "r") as file:
             repos = [line.strip() for line in file if line.strip()]
@@ -16,7 +19,7 @@ def load_repos_from_file(filename="repo.txt"):
         return []
 
 # 加载缓存文件
-def load_cache(cache_file="cache.json"):
+def load_cache(cache_file):
     if os.path.exists(cache_file):
         try:
             with open(cache_file, "r") as file:
@@ -26,7 +29,7 @@ def load_cache(cache_file="cache.json"):
     return {}
 
 # 保存缓存文件
-def save_cache(cache, cache_file="cache.json"):
+def save_cache(cache, cache_file):
     try:
         with open(cache_file, "w") as file:
             json.dump(cache, file, indent=4)
@@ -34,7 +37,7 @@ def save_cache(cache, cache_file="cache.json"):
         print(f"Error saving cache: {e}")
 
 # 检查是否需要进行新的检查
-def is_check_needed(cache, cache_file="cache.json"):
+def is_check_needed(cache, cache_file):
     today = datetime.now(timezone.utc).date()
     last_checked = cache.get("last_checked")
 
@@ -50,7 +53,7 @@ def is_check_needed(cache, cache_file="cache.json"):
     return True
 
 # 检查仓库最近发布的版本
-def check_repo_releases(repos, token, days=7, cache_file="cache.json"):
+def check_repo_releases(repos, token, days, cache_file):
     base_url = "https://api.github.com/repos/"
     headers = {"Authorization": f"token {token}"} if token else {}
     threshold_date = datetime.now(timezone.utc) - timedelta(days=days)
@@ -60,6 +63,7 @@ def check_repo_releases(repos, token, days=7, cache_file="cache.json"):
     cache = load_cache(cache_file)
 
     for repo in repos:
+        print(f"Check Releases {repo}")  # 输出检查提示
         try:
             # 获取 releases 列表
             response = requests.get(f"{base_url}{repo}/releases", headers=headers)
@@ -99,7 +103,8 @@ def check_repo_releases(repos, token, days=7, cache_file="cache.json"):
 # 主函数
 if __name__ == "__main__":
     # 加载 .env 文件
-    load_dotenv(".env")
+    dotenv_path = os.path.join(SCRIPT_DIR, ".env")
+    load_dotenv(dotenv_path)
 
     # 从 .env 文件获取 GitHub token
     token = os.getenv("GITHUB_TOKEN")
@@ -111,7 +116,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check recent releases from GitHub repositories.")
     parser.add_argument(
         "--file",
-        default="repo.txt",
+        default=os.path.join(SCRIPT_DIR, "repo.txt"),
         help="Path to the file containing repository list (default: repo.txt)."
     )
     parser.add_argument(
@@ -122,7 +127,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--cache",
-        default="cache.json",
+        default=os.path.join(SCRIPT_DIR, "cache.json"),
         help="Path to the cache file (default: cache.json)."
     )
 
