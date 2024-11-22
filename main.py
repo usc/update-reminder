@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 import argparse
 import json
 import os
@@ -81,13 +82,17 @@ def check_repo_releases(repos, token, days=7, cache_file="cache.json"):
 
 # 主函数
 if __name__ == "__main__":
+    # 加载 .env 文件
+    load_dotenv(".env")
+
+    # 从 .env 文件获取 GitHub token
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        print("Error: GITHUB_TOKEN not found in .env file.")
+        exit(1)
+
     # 设置命令行参数解析
     parser = argparse.ArgumentParser(description="Check recent releases from GitHub repositories.")
-    parser.add_argument(
-        "--token",
-        required=True,
-        help="GitHub Personal Access Token for authentication."
-    )
     parser.add_argument(
         "--file",
         default="repo.txt",
@@ -112,7 +117,7 @@ if __name__ == "__main__":
     if not repo_list:
         print("No repositories found. Please check your input file.")
     else:
-        recent_updates = check_repo_releases(repo_list, args.token, args.days, args.cache)
+        recent_updates = check_repo_releases(repo_list, token, args.days, args.cache)
 
         if recent_updates:
             print(f"Repositories with new releases in the last {args.days} days:")
