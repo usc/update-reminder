@@ -8,6 +8,7 @@ import os
 # 获取脚本所在目录
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
 # 从文件读取仓库列表
 def load_repos_from_file(filename):
     try:
@@ -17,6 +18,7 @@ def load_repos_from_file(filename):
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
         return []
+
 
 # 加载缓存文件
 def load_cache(cache_file):
@@ -28,6 +30,7 @@ def load_cache(cache_file):
             print("Error loading cache file. Starting with an empty cache.")
     return {}
 
+
 # 保存缓存文件
 def save_cache(cache, cache_file):
     try:
@@ -35,6 +38,7 @@ def save_cache(cache, cache_file):
             json.dump(cache, file, indent=4)
     except IOError as e:
         print(f"Error saving cache: {e}")
+
 
 # 检查是否需要进行新的检查
 def is_check_needed(cache, cache_file):
@@ -51,6 +55,7 @@ def is_check_needed(cache, cache_file):
     cache["last_checked"] = today.strftime("%Y-%m-%d")
     save_cache(cache, cache_file)
     return True
+
 
 # 检查仓库最近发布的版本
 def check_repo_releases(repos, token, days, cache_file):
@@ -99,6 +104,7 @@ def check_repo_releases(repos, token, days, cache_file):
     save_cache(cache, cache_file)
 
     return recent_releases
+
 
 # 主函数
 if __name__ == "__main__":
