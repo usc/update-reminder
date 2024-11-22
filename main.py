@@ -44,7 +44,7 @@ def is_check_needed(cache, cache_file):
     if last_checked:
         last_checked_date = datetime.strptime(last_checked, "%Y-%m-%d").date()
         if last_checked_date == today:
-            print("Already checked today. No new checks performed.")
+            print("Github releases already checked today. No new checks performed.")
             return False
 
     # 更新最后检查日期为今天
@@ -144,8 +144,8 @@ if __name__ == "__main__":
             recent_updates = check_repo_releases(repo_list, token, args.days, args.cache)
 
             if recent_updates:
-                print(f"Repositories with new releases in the last {args.days} days:")
+                print(f"Github repositories with new releases in the last {args.days} days:")
                 for repo, version, published_at in recent_updates:
                     print(f"{repo} - Version: {version} (Published: {published_at})")
             else:
-                print("No new releases since the last check.")
+                print("No new github releases since the last check.")

@@ -2,7 +2,7 @@
 
 ## 使用
 ```
-python main.py --file repo.txt --days 7 --cache cache.json
+python main.py --days 7 --file /custom/path/repo.txt --cache /custom/path/cache.json
 ```
 参数说明：
 ```
