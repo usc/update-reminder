@@ -1,6 +1,6 @@
 .env
 cache.json
-repo.txt
+targets.txt
 .idea
 
 # Byte-compiled / optimized / DLL files

@@ -5,22 +5,20 @@ import argparse
 import json
 import os
 
-# 获取脚本所在目录
+# Get the script directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-
-# 从文件读取仓库列表
-def load_repos_from_file(filename):
+# Load targets from file
+def load_targets_from_file(filename):
     try:
         with open(filename, "r") as file:
-            repos = [line.strip() for line in file if line.strip()]
-        return repos
+            targets = [line.strip() for line in file if line.strip()]
+        return targets
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
         return []
 
-
-# 加载缓存文件
+# Load cache from file
 def load_cache(cache_file):
     if os.path.exists(cache_file):
         try:
@@ -30,8 +28,7 @@ def load_cache(cache_file):
             print("Error loading cache file. Starting with an empty cache.")
     return {}
 
-
-# 保存缓存文件
+# Save cache to file
 def save_cache(cache, cache_file):
     try:
         with open(cache_file, "w") as file:
@@ -39,99 +36,121 @@ def save_cache(cache, cache_file):
     except IOError as e:
         print(f"Error saving cache: {e}")
 
-
-# 检查是否需要进行新的检查
-def is_check_needed(cache, cache_file):
+# Check if a target needs checking
+def is_check_needed(cache):
     today = datetime.now(timezone.utc).date()
     last_checked = cache.get("last_checked")
 
     if last_checked:
         last_checked_date = datetime.strptime(last_checked, "%Y-%m-%d").date()
         if last_checked_date == today:
-            print("Github releases already checked today. No new checks performed.")
+            print("Targets already checked today. No new checks performed.")
             return False
 
-    # 更新最后检查日期为今天
+    # update last_checked today
     cache["last_checked"] = today.strftime("%Y-%m-%d")
-    save_cache(cache, cache_file)
     return True
 
-
-# 检查仓库最近发布的版本
-def check_repo_releases(repos, token, days, cache_file):
+# Check GitHub repository releases
+def check_repo_releases(repo, token, days, cache):
     base_url = "https://api.github.com/repos/"
     headers = {"Authorization": f"token {token}"} if token else {}
     threshold_date = datetime.now(timezone.utc) - timedelta(days=days)
     recent_releases = []
 
-    # 加载缓存
-    cache = load_cache(cache_file)
+    print(f"Checking GitHub repository: {repo} ...")
+    try:
+        response = requests.get(f"{base_url}{repo}/releases", headers=headers)
+        response.raise_for_status()
+        releases = response.json()
 
-    for repo in repos:
-        print(f"Check Releases {repo}")  # 输出检查提示
-        try:
-            # 获取 releases 列表
-            response = requests.get(f"{base_url}{repo}/releases", headers=headers)
-            response.raise_for_status()
-            releases = response.json()
+        for release in releases:
+            if release["prerelease"] or release["draft"]:
+                continue  # Skip pre-releases and drafts
 
-            # 筛选有效的版本
-            for release in releases:
-                if release["prerelease"] or release["draft"]:
-                    continue  # 跳过 pre-release 和 draft 版本
+            version = release["tag_name"].lower()
+            if "alpha" in version or "beta" in version:
+                continue  # Skip alpha or beta versions
 
-                # 跳过包含 alpha 或 beta 的版本
-                version = release["tag_name"].lower()
-                if "alpha" in version or "beta" in version:
-                    continue
+            published_at = datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            if published_at > threshold_date:
+                repo_cache = cache.get(repo, [])
+                if version in repo_cache:
+                    continue  # Skip if version already notified
 
-                # 检查发布日期
-                published_at = datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-                if published_at > threshold_date:
-                    # 检查缓存
-                    repo_cache = cache.get(repo, [])
-                    if version in repo_cache:
-                        continue  # 如果版本已提示过，则跳过
+                recent_releases.append({"repo": repo, "version": version, "published_at": published_at})
+                repo_cache.append(version)  # Mark version as notified
+                cache[repo] = repo_cache
 
-                    recent_releases.append((repo, version, published_at))
-                    repo_cache.append(version)  # 记录已提示过的版本
-                    cache[repo] = repo_cache
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error checking releases for {repo}: {e}")
-
-    # 保存更新后的缓存
-    save_cache(cache, cache_file)
+    except requests.exceptions.RequestException as e:
+        print(f"Error checking releases for {repo}: {e}")
 
     return recent_releases
 
+# Check Jenkins build
+def check_jenkins_build(job_url, cache):
+    print(f"Checking Jenkins job: {job_url} ...")
+    api_url = f"{job_url.rstrip('/')}/lastSuccessfulBuild/api/json"
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()
+        last_build = response.json()
 
-# 主函数
+        if not last_build:
+            print(f"Warning: No successful builds found for {job_url}.")
+            return None
+
+        build_number = last_build.get("number")
+        build_url = last_build.get("url")
+        build_timestamp = last_build.get("timestamp")  # Milliseconds timestamp
+        build_date = datetime.fromtimestamp(build_timestamp / 1000, tz=timezone.utc).replace(microsecond=0)
+
+        cached_build = cache.get(job_url)
+        if cached_build == build_number:
+            return None
+
+        cache[job_url] = build_number
+        return {"job_url": job_url, "build_number": build_number, "build_date": build_date, "build_url": build_url}
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error checking Jenkins job {job_url}: {e}")
+        return None
+
+# Main checking logic
+def check_targets(targets, cache, github_token=None, days=7):
+    recent_updates = []
+
+    for target in targets:
+        if target.startswith("https://"):  # Detect Jenkins job
+            result = check_jenkins_build(target, cache)
+            if result:
+                recent_updates.append(result)
+        else:  # Detect GitHub repository
+            recent_updates += check_repo_releases(target, github_token, days, cache)
+
+    return recent_updates
+
+# Main function
 if __name__ == "__main__":
     print("")
 
-    # 加载 .env 文件
+    # load env
     dotenv_path = os.path.join(SCRIPT_DIR, ".env")
     load_dotenv(dotenv_path)
 
-    # 从 .env 文件获取 GitHub token
     token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        print("Error: GITHUB_TOKEN not found in .env file.")
-        exit(1)
 
-    # 设置命令行参数解析
-    parser = argparse.ArgumentParser(description="Check recent releases from GitHub repositories.")
+    parser = argparse.ArgumentParser(description="Check recent updates from GitHub repositories and Jenkins jobs.")
     parser.add_argument(
         "--file",
-        default=os.path.join(SCRIPT_DIR, "repo.txt"),
-        help="Path to the file containing repository list (default: repo.txt)."
+        default=os.path.join(SCRIPT_DIR, "targets.txt"),
+        help="Path to the file containing repository or Jenkins job list (default: targets.txt)."
     )
     parser.add_argument(
         "--days",
         type=int,
         default=7,
-        help="Number of days to check for recent releases (default: 7)."
+        help="Number of days to check for recent updates (default: 7)."
     )
     parser.add_argument(
         "--cache",
@@ -141,19 +160,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # 加载仓库列表
-    repo_list = load_repos_from_file(args.file)
-    if not repo_list:
-        print("No repositories found. Please check your input file.")
+    targets = load_targets_from_file(args.file)
+    if not targets:
+        print("No targets found. Please check your input file.")
     else:
-        # 加载缓存并检查是否需要新检查
         cache = load_cache(args.cache)
-        if is_check_needed(cache, args.cache):
-            recent_updates = check_repo_releases(repo_list, token, args.days, args.cache)
+        if is_check_needed(cache):
+            recent_updates = check_targets(targets, cache, token, args.days)
+            save_cache(cache, args.cache)
 
             if recent_updates:
-                print(f"Github repositories with new releases in the last {args.days} days:")
-                for repo, version, published_at in recent_updates:
-                    print(f"{repo} - Version: {version} (Published: {published_at})")
+                print("Recent updates:")
+                for update in recent_updates:
+                    if "build_number" in update:
+                        print(f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} ({update['build_date']})")
+                    else:
+                        print(f"GitHub Repo: {update['repo']} - Version: {update['version']} ({update['published_at']})")
             else:
-                print("No new github releases since the last check.")
+                print("No new updates.")
