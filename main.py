@@ -108,6 +108,8 @@ def check_repo_releases(repos, token, days, cache_file):
 
 # 主函数
 if __name__ == "__main__":
+    print("")
+
     # 加载 .env 文件
     dotenv_path = os.path.join(SCRIPT_DIR, ".env")
     load_dotenv(dotenv_path)
