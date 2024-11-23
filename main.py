@@ -44,7 +44,7 @@ def is_check_needed(cache):
     if last_checked:
         last_checked_date = datetime.strptime(last_checked, "%Y-%m-%d").date()
         if last_checked_date == today:
-            print("Targets already checked today. No new checks performed.")
+            print("Targets update already checked today. No new checks performed.")
             return False
 
     # update last_checked today
