@@ -56,40 +56,35 @@ def check_repo_releases(repo, token, days, cache):
     base_url = "https://api.github.com/repos/"
     headers = {"Authorization": f"token {token}"} if token else {}
     threshold_date = datetime.now(timezone.utc) - timedelta(days=days)
-    recent_releases = []
 
-    print(f"Checking GitHub repository: {repo} ...")
+    #print(f"Checking GitHub repository: {repo} ...")
     try:
-        response = requests.get(f"{base_url}{repo}/releases", headers=headers)
+        response = requests.get(f"{base_url}{repo}/releases/latest", headers=headers)
         response.raise_for_status()
-        releases = response.json()
+        release = response.json()
 
-        for release in releases:
-            if release["prerelease"] or release["draft"]:
-                continue  # Skip pre-releases and drafts
+        if release["prerelease"] or release["draft"]:
+            return None  # Skip pre-releases and drafts
 
-            version = release["tag_name"].lower()
-            if "alpha" in version or "beta" in version:
-                continue  # Skip alpha or beta versions
+        version = release["tag_name"].lower()
+        if "alpha" in version or "beta" in version:
+            return None  # Skip alpha or beta versions
 
-            published_at = datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-            if published_at > threshold_date:
-                repo_cache = cache.get(repo, [])
-                if version in repo_cache:
-                    continue  # Skip if version already notified
+        published_at = datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        if published_at > threshold_date:
+            if cache.get(repo) == version:
+                return None  # Skip if version already notified
 
-                recent_releases.append({"repo": repo, "version": version, "published_at": published_at})
-                repo_cache.append(version)  # Mark version as notified
-                cache[repo] = repo_cache
+            cache[repo] = version
+            return {"repo": repo, "version": version, "published_at": published_at}
 
     except requests.exceptions.RequestException as e:
         print(f"Error checking releases for {repo}: {e}")
-
-    return recent_releases
+        return None
 
 # Check Jenkins build
 def check_jenkins_build(job_url, cache):
-    print(f"Checking Jenkins job: {job_url} ...")
+    #print(f"Checking Jenkins job: {job_url} ...")
     api_url = f"{job_url.rstrip('/')}/lastSuccessfulBuild/api/json"
     try:
         response = requests.get(api_url)
@@ -126,7 +121,9 @@ def check_targets(targets, cache, github_token=None, days=7):
             if result:
                 recent_updates.append(result)
         else:  # Detect GitHub repository
-            recent_updates += check_repo_releases(target, github_token, days, cache)
+            result = check_repo_releases(target, github_token, days, cache)
+            if result:
+                recent_updates.append(result)
 
     return recent_updates
 
@@ -177,4 +174,4 @@ if __name__ == "__main__":
                     else:
                         print(f"GitHub Repo: {update['repo']} - Version: {update['version']} ({update['published_at']})")
             else:
-                print("No new updates.")
+                print("Targets no new updates.")
