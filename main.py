@@ -127,6 +127,28 @@ def check_targets(targets, cache, github_token=None, days=7):
 
     return recent_updates
 
+
+# Write updates to a file in append mode
+def write_updates_to_file(updates, file_path):
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Current date and time
+    try:
+        with open(file_path, "a") as file:
+            for update in updates:
+                if "build_number" in update:
+                    file.write(
+                        f"{current_time} - Jenkins Job: {update['job_url']} - Build #{update['build_number']} "
+                        f"(URL: {update['build_url']}, Date: {update['build_date']})\n"
+                    )
+                else:
+                    file.write(
+                        f"{current_time} - GitHub Repo: {update['repo']} - Version: {update['version']} "
+                        f"(Published: {update['published_at']})\n"
+                    )
+        #print(f"Updates have been written to {file_path}.")
+    except IOError as e:
+        print(f"Error writing updates to file {file_path}: {e}")
+
+
 # Main function
 if __name__ == "__main__":
     print("")
@@ -173,5 +195,9 @@ if __name__ == "__main__":
                         print(f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} ({update['build_date']})")
                     else:
                         print(f"GitHub Repo: {update['repo']} - Version: {update['version']} ({update['published_at']})")
+
+                # Write updates to updates.txt
+                updates_file = os.path.join(SCRIPT_DIR, "updates.txt")
+                write_updates_to_file(recent_updates, updates_file)
             else:
                 print("Targets no new updates.")
