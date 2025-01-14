@@ -76,7 +76,7 @@ def check_repo_releases(repo, token, days, cache):
                 return None  # Skip if version already notified
 
             cache[repo] = version
-            return {"repo": repo, "version": version, "published_at": published_at}
+            return {"repo": repo, "version": version, "published_at": published_at, "html_url": release["html_url"]}
 
     except requests.exceptions.RequestException as e:
         print(f"Error checking releases for {repo}: {e}")
@@ -142,7 +142,7 @@ def write_updates_to_file(updates, file_path):
                 else:
                     file.write(
                         f"{current_time} - GitHub Repo: {update['repo']} - Version: {update['version']} "
-                        f"(Published: {update['published_at']})\n"
+                        f"(URL: {update['html_url']}, Published: {update['published_at']})\n"
                     )
         #print(f"Updates have been written to {file_path}.")
     except IOError as e:
@@ -194,7 +194,7 @@ if __name__ == "__main__":
                     if "build_number" in update:
                         print(f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} ({update['build_date']})")
                     else:
-                        print(f"GitHub Repo: {update['repo']} - Version: {update['version']} ({update['published_at']})")
+                        print(f"GitHub Repo: {update['repo']} - Version: {update['version']} ({update['published_at']}) [{update['html_url']}]")
 
                 # Write updates to updates.txt
                 updates_file = os.path.join(SCRIPT_DIR, "updates.txt")
