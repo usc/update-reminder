@@ -148,6 +148,27 @@ def write_updates_to_file(updates, file_path):
     except IOError as e:
         print(f"Error writing updates to file {file_path}: {e}")
 
+# Send updates via Telegram
+def send_updates_via_telegram(updates, bot_token, chat_id):
+    if bot_token and chat_id:
+        base_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        for update in updates:
+            if "build_number" in update:
+                message = (
+                    f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} "
+                    f"(URL: {update['build_url']}, Date: {update['build_date']})"
+                )
+            else:
+                message = (
+                    f"GitHub Repo: {update['repo']} - Version: {update['version']} "
+                    f"(URL: {update['html_url']}, Published: {update['published_at']})"
+                )
+            payload = {"chat_id": chat_id, "text": message}
+            try:
+                response = requests.post(base_url, data=payload)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                print(f"Error sending update via Telegram: {e}")
 
 # Main function
 if __name__ == "__main__":
@@ -158,6 +179,8 @@ if __name__ == "__main__":
     load_dotenv(dotenv_path)
 
     token = os.getenv("GITHUB_TOKEN")
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
     parser = argparse.ArgumentParser(description="Check recent updates from GitHub repositories and Jenkins jobs.")
     parser.add_argument(
@@ -199,5 +222,8 @@ if __name__ == "__main__":
                 # Write updates to updates.txt
                 updates_file = os.path.join(SCRIPT_DIR, "updates.txt")
                 write_updates_to_file(recent_updates, updates_file)
+
+                # Send updates via Telegram
+                send_updates_via_telegram(recent_updates, telegram_bot_token, telegram_chat_id)
             else:
                 print("Targets no new updates.")
