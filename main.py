@@ -199,6 +199,11 @@ if __name__ == "__main__":
         default=os.path.join(SCRIPT_DIR, "cache.json"),
         help="Path to the cache file (default: cache.json)."
     )
+    parser.add_argument(
+        "--updates",
+        default=os.path.join(SCRIPT_DIR, "updates.txt"),
+        help="Path to the updates file (default: updates.txt in the script directory)."
+    )
 
     args = parser.parse_args()
 
@@ -220,8 +225,7 @@ if __name__ == "__main__":
                         print(f"GitHub Repo: {update['repo']} - Version: {update['version']} ({update['published_at']}) [{update['html_url']}]")
 
                 # Write updates to updates.txt
-                updates_file = os.path.join(SCRIPT_DIR, "updates.txt")
-                write_updates_to_file(recent_updates, updates_file)
+                write_updates_to_file(recent_updates, args.updates)
 
                 # Send updates via Telegram
                 send_updates_via_telegram(recent_updates, telegram_bot_token, telegram_chat_id)
