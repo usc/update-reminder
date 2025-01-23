@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 import argparse
 import json
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Get the script directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -127,7 +130,6 @@ def check_targets(targets, cache, github_token=None, days=7):
 
     return recent_updates
 
-
 # Write updates to a file in append mode
 def write_updates_to_file(updates, file_path):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Current date and time
@@ -170,6 +172,45 @@ def send_updates_via_telegram(updates, bot_token, chat_id):
             except requests.exceptions.RequestException as e:
                 print(f"Error sending update via Telegram: {e}")
 
+# Send updates via email
+def send_updates_via_email(updates, email_config):
+    if not all(email_config.values()):
+        return
+
+    smtp_server = email_config["SMTP_SERVER"]
+    smtp_port = email_config["SMTP_PORT"]
+    sender_email = email_config["SENDER_EMAIL"]
+    receiver_email = email_config["RECEIVER_EMAIL"]
+    password = email_config["EMAIL_PASSWORD"]
+
+    subject = "Recent Updates Notification"
+    body = ""
+    for update in updates:
+        if "build_number" in update:
+            body += (
+                f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} "
+                f"(URL: {update['build_url']}, Date: {update['build_date']})\n"
+            )
+        else:
+            body += (
+                f"GitHub Repo: {update['repo']} - Version: {update['version']} "
+                f"(URL: {update['html_url']}, Published: {update['published_at']})\n"
+            )
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, password)
+            server.sendmail(sender_email, receiver_email, msg.as_string())
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
 # Main function
 if __name__ == "__main__":
     print("")
@@ -181,6 +222,14 @@ if __name__ == "__main__":
     token = os.getenv("GITHUB_TOKEN")
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    email_config = {
+        "SMTP_SERVER": os.getenv("SMTP_SERVER"),
+        "SMTP_PORT": os.getenv("SMTP_PORT"),
+        "SENDER_EMAIL": os.getenv("SENDER_EMAIL"),
+        "RECEIVER_EMAIL": os.getenv("RECEIVER_EMAIL"),
+        "EMAIL_PASSWORD": os.getenv("EMAIL_PASSWORD")
+    }
 
     parser = argparse.ArgumentParser(description="Check recent updates from GitHub repositories and Jenkins jobs.")
     parser.add_argument(
@@ -229,5 +278,8 @@ if __name__ == "__main__":
 
                 # Send updates via Telegram
                 send_updates_via_telegram(recent_updates, telegram_bot_token, telegram_chat_id)
+
+                # Send updates via Email
+                send_updates_via_email(recent_updates, email_config)
             else:
                 print("Targets no new updates.")
