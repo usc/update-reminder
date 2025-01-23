@@ -130,23 +130,27 @@ def check_targets(targets, cache, github_token=None, days=7):
 
     return recent_updates
 
+# Format update message
+def format_update_message(update):
+    if "build_number" in update:
+        return (
+            f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} "
+            f"(URL: {update['build_url']}, Date: {update['build_date']})"
+        )
+    else:
+        return (
+            f"GitHub Repo: {update['repo']} - Version: {update['version']} "
+            f"(URL: {update['html_url']}, Published: {update['published_at']})"
+        )
+
 # Write updates to a file in append mode
 def write_updates_to_file(updates, file_path):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Current date and time
     try:
         with open(file_path, "a") as file:
             for update in updates:
-                if "build_number" in update:
-                    file.write(
-                        f"{current_time} - Jenkins Job: {update['job_url']} - Build #{update['build_number']} "
-                        f"(URL: {update['build_url']}, Date: {update['build_date']})\n"
-                    )
-                else:
-                    file.write(
-                        f"{current_time} - GitHub Repo: {update['repo']} - Version: {update['version']} "
-                        f"(URL: {update['html_url']}, Published: {update['published_at']})\n"
-                    )
-        #print(f"Updates have been written to {file_path}.")
+                message = format_update_message(update)
+                file.write(f"{current_time} - {message}\n")
     except IOError as e:
         print(f"Error writing updates to file {file_path}: {e}")
 
@@ -155,16 +159,7 @@ def send_updates_via_telegram(updates, bot_token, chat_id):
     if bot_token and chat_id:
         base_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         for update in updates:
-            if "build_number" in update:
-                message = (
-                    f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} "
-                    f"(URL: {update['build_url']}, Date: {update['build_date']})"
-                )
-            else:
-                message = (
-                    f"GitHub Repo: {update['repo']} - Version: {update['version']} "
-                    f"(URL: {update['html_url']}, Published: {update['published_at']})"
-                )
+            message = format_update_message(update)
             payload = {"chat_id": chat_id, "text": message}
             try:
                 response = requests.post(base_url, data=payload)
@@ -184,18 +179,7 @@ def send_updates_via_email(updates, email_config):
     password = email_config["EMAIL_PASSWORD"]
 
     subject = "Recent Updates Notification"
-    body = ""
-    for update in updates:
-        if "build_number" in update:
-            body += (
-                f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} "
-                f"(URL: {update['build_url']}, Date: {update['build_date']})\n"
-            )
-        else:
-            body += (
-                f"GitHub Repo: {update['repo']} - Version: {update['version']} "
-                f"(URL: {update['html_url']}, Published: {update['published_at']})\n"
-            )
+    body = "\n".join([format_update_message(update) for update in updates])
 
     msg = MIMEMultipart()
     msg["From"] = sender_email
@@ -268,10 +252,7 @@ if __name__ == "__main__":
             if recent_updates:
                 print("Recent updates:")
                 for update in recent_updates:
-                    if "build_number" in update:
-                        print(f"Jenkins Job: {update['job_url']} - Build #{update['build_number']} ({update['build_date']})")
-                    else:
-                        print(f"GitHub Repo: {update['repo']} - Version: {update['version']} ({update['published_at']}) [{update['html_url']}]")
+                    print(format_update_message(update))
 
                 # Write updates to updates.txt
                 write_updates_to_file(recent_updates, args.updates)
