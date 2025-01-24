@@ -188,10 +188,10 @@ def send_updates_via_email(updates, email_config):
     msg.attach(MIMEText(body, "plain"))
 
     try:
-        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
             server.login(sender_email, password)
             server.sendmail(sender_email, receiver_email, msg.as_string())
-            server.quit()
     except Exception as e:
         print(f"Error sending email: {e}")
 
