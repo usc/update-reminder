@@ -42,16 +42,17 @@ def save_cache(cache, cache_file):
 # Check if a target needs checking
 def is_check_needed(cache):
     today = datetime.now(timezone.utc).date()
+    today_str = today.strftime("%Y-%m-%d")
     last_checked = cache.get("last_checked")
 
     if last_checked:
         last_checked_date = datetime.strptime(last_checked, "%Y-%m-%d").date()
         if last_checked_date == today:
-            print("Targets update already checked today. No new checks performed.")
+            print(f"{today_str} - Targets update already checked today. No new checks performed.")
             return False
 
     # update last_checked today
-    cache["last_checked"] = today.strftime("%Y-%m-%d")
+    cache["last_checked"] = today_str
     return True
 
 # Check GitHub repository releases
