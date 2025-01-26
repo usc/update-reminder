@@ -199,8 +199,6 @@ def send_updates_via_email(updates, email_config):
 
 # Main function
 if __name__ == "__main__":
-    print("")
-
     # load env
     dotenv_path = os.path.join(SCRIPT_DIR, ".env")
     load_dotenv(dotenv_path)
