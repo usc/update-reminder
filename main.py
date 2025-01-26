@@ -250,8 +250,9 @@ if __name__ == "__main__":
             recent_updates = check_targets(targets, cache, token, args.days)
             save_cache(cache, args.cache)
 
+            current_date = datetime.now().strftime("%Y-%m-%d")
             if recent_updates:
-                print("Recent updates:")
+                print(f"{current_date} - Recent updates:")
                 for update in recent_updates:
                     print(format_update_message(update))
 
@@ -264,4 +265,4 @@ if __name__ == "__main__":
                 # Send updates via Email
                 send_updates_via_email(recent_updates, email_config)
             else:
-                print("Targets no new updates.")
+                print(f"{current_date} - Targets no new updates.")
