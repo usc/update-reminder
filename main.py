@@ -178,6 +178,7 @@ def send_updates_via_email(updates, email_config):
     sender_email = email_config["SENDER_EMAIL"]
     receiver_email = email_config["RECEIVER_EMAIL"]
     password = email_config["EMAIL_PASSWORD"]
+    cc_sender = email_config.get("CC_SENDER", "true").lower() == "true"
 
     subject = "Recent Updates Notification"
     body = "\n".join([format_update_message(update) for update in updates])
@@ -185,15 +186,20 @@ def send_updates_via_email(updates, email_config):
     msg = MIMEMultipart()
     msg["From"] = sender_email
     msg["To"] = receiver_email
-    msg["Cc"] = sender_email
+    if cc_sender:
+        msg["Cc"] = sender_email
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
+
+    recipients = [receiver_email]
+    if cc_sender:
+        recipients.append(sender_email)
 
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(sender_email, password)
-            server.sendmail(sender_email, [receiver_email, sender_email], msg.as_string())
+            server.sendmail(sender_email, recipients, msg.as_string())
     except Exception as e:
         print(f"Error sending email: {e}")
 
@@ -212,7 +218,8 @@ if __name__ == "__main__":
         "SMTP_PORT": os.getenv("SMTP_PORT"),
         "SENDER_EMAIL": os.getenv("SENDER_EMAIL"),
         "RECEIVER_EMAIL": os.getenv("RECEIVER_EMAIL"),
-        "EMAIL_PASSWORD": os.getenv("EMAIL_PASSWORD")
+        "EMAIL_PASSWORD": os.getenv("EMAIL_PASSWORD"),
+        "CC_SENDER": os.getenv("CC_SENDER")
     }
 
     parser = argparse.ArgumentParser(description="Check recent updates from GitHub repositories and Jenkins jobs.")
