@@ -219,7 +219,7 @@ if __name__ == "__main__":
         "SENDER_EMAIL": os.getenv("SENDER_EMAIL"),
         "RECEIVER_EMAIL": os.getenv("RECEIVER_EMAIL"),
         "EMAIL_PASSWORD": os.getenv("EMAIL_PASSWORD"),
-        "CC_SENDER": os.getenv("CC_SENDER")
+        "CC_SENDER": os.getenv("CC_SENDER", "true")
     }
 
     parser = argparse.ArgumentParser(description="Check recent updates from GitHub repositories and Jenkins jobs.")
