@@ -2,16 +2,38 @@
 针对Github仓库、Jenkins构建的更新提醒
 
 ## 使用
+### 运行
 ```
-python main.py --days 7 --file /custom/path/targets.txt --cache /custom/path/cache.json
+python main.py --days 7 --file /custom/path/targets.txt --cache /custom/path/cache.json --updates /custom/path/updates.txt
 ```
 参数说明：
 ```
-token：GitHub 的个人访问令牌，从 .env 文件获取 GitHub token。
---file：仓库列表文件路径，默认为 targets.txt。
 --days：检查的时间范围，默认为过去 7 天。
+--file：仓库列表文件路径，默认名为 targets.txt，请自行创建。
 --cache：缓存文件，默认缓存文件为 cache.json。
+--updates：更新内容文件，默认为 updates.txt。
 ```
+### 环境变量
+配置放到 `.env` 文件中，其中
+```
+# Github的个人访问令牌
+GITHUB_TOKEN=
+
+# Telegram Bot配置，具体如何创建机器人及获取配置请查找网络
+TELEGRAM_CHAT_ID=
+TELEGRAM_BOT_TOKEN=
+
+# Email配置
+SMTP_SERVER=
+SMTP_PORT=
+SENDER_EMAIL=
+EMAIL_PASSWORD=
+RECEIVER_EMAIL=
+## 是否cc给发件人，不配置默认为true
+CC_SENDER= 
+
+```
+
 
 ## 优势
 - 多源支持：同时支持 GitHub 和 Jenkins。
